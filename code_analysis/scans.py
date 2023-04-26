@@ -54,7 +54,10 @@ class TraceGlobals(RuleSet):
 def function_list(fs: list[Path]):
     l = ListFunctions()
     for f in fs:
-        l.run(open(f, "r").read())
+        try:
+            l.run(open(f, "r").read())
+        except UnicodeDecodeError:
+            print(f"Error decoding {f} as unicode, skipping ...")
     return l.functions
 
 
@@ -62,5 +65,8 @@ def trace_flow(fs: list[Path]):
     t = TraceGlobals(functions=function_list(fs))
     for f in fs:
         t.current_fn = None
-        t.run(open(f, "r").read())
+        try:
+            t.run(open(f, "r").read())
+        except UnicodeDecodeError:
+            print(f"Error decoding {f} as unicode, skipping ...")
     return t
