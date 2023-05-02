@@ -1,3 +1,4 @@
+from typing import Optional
 from pathlib import Path
 from itertools import zip_longest
 from collections import defaultdict
@@ -32,8 +33,9 @@ def global_access(files: list[Path]):
 @click.command()
 @click.option('-o', '--output')
 @click.option('-e', '--engine', default="dot")
+@click.option('-r', '--root')
 @click.argument('files', nargs=-1)
-def graph(output: Path, engine: str, files: list[Path]):
+def graph(output: Path, engine: str, root: Optional[str], files: list[Path]):
     t = trace_flow(files)
     g = graphviz.Digraph()
     g.attr(rankdir="LR")
@@ -44,7 +46,7 @@ def graph(output: Path, engine: str, files: list[Path]):
             write_count[v] += 1
     write_once = set(v for v in write_count if write_count[v] == 1)
 
-    for f in t.functions:
+    def add_function(f):
         consts = t.access[f].intersection(write_once)
         readonly = t.access[f] - t.assignments[f] - consts
         readwrite = t.assignments[f]
@@ -60,6 +62,21 @@ def graph(output: Path, engine: str, files: list[Path]):
         g.node(f, label=label, shape="plaintext")
         for e in t.calls[f]:
             g.edge(f, e)
+
+    if root is None:
+        for f in t.functions:
+            add_function(f)
+    else:
+        assert(root in t.functions)
+        visited = set()
+        stack = [ root ]
+        while stack:
+            n = stack.pop()
+            if n in visited:
+                continue
+            add_function(n)
+            visited.add(n)
+            stack.extend(t.calls[n])
 
     fmt = Path(output).suffix.strip('.')
     g.render(outfile=output, format=fmt, engine=engine)

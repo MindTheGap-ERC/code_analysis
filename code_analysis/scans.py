@@ -11,7 +11,7 @@ from .mawk import on_match, run, RuleSet
 class ListFunctions(RuleSet):
     functions: set[str] = field(default_factory=set)
 
-    @on_match(r"function.* ([a-zA-Z_]+)\(glob,.*\)")
+    @on_match(r"function.* ([a-zA-Z_]+) *\(.*\)")
     def open_function(self, m):
         function_name = m[1]
         self.functions.add(function_name)
@@ -25,7 +25,7 @@ class TraceGlobals(RuleSet):
     access: defaultdict = field(default_factory=lambda: defaultdict(set))
     calls: defaultdict = field(default_factory=lambda: defaultdict(list))
 
-    @on_match(r"function.* ([a-zA-Z_]+)\(glob,.*\)")
+    @on_match(r"function.* ([a-zA-Z_]+) *\( *glob,.*\)")
     def open_function(self, m):
         function_name = m[1]
         self.current_fn = function_name
@@ -44,9 +44,9 @@ class TraceGlobals(RuleSet):
         for sub in re.findall(r"glob\.([a-zA-Z_]+)", m[0]):
             self.access[self.current_fn].add(sub)
 
-    @on_match(r"^(?! *function).*([a-zA-Z_]+)\(.*$")
+    @on_match(r"^(?! *function).*?([a-zA-Z_]+)\s*\(\s*glob.*$")
     def call_graph(self, m):
-        for sub in re.findall(r"([a-zA-Z_]+)\(", m[0]):
+        for sub in re.findall(r"([a-zA-Z_]+)\s*\(", m[0]):
             if sub in self.functions:
                 self.calls[self.current_fn].append(sub)
 
